@@ -1,4 +1,4 @@
-﻿
+
 // RtcWinDemoDlg.cpp: 实现文件
 //
 
@@ -129,6 +129,7 @@ BOOL CRtcWinDemoDlg::OnInitDialog()
 	session_id_ = rand()%0xFFFF;
 	m_editRoomId.SetWindowText(_T("bytertc"));
 	m_editUserId.SetWindowText(_T("pc"));
+	m_editMessage.SetWindowText(_T("null"));
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -281,28 +282,24 @@ HWND CRtcWinDemoDlg::AllocateWindow(bool is_local, std::string track_id) {
 	return pWnd ? pWnd->GetSafeHwnd() : NULL;
 }
 
-void CRtcWinDemoDlg::OnBnClickedBtnJoin()
+void CRtcWinDemoDlg::OnBnClickedBtnSend()
 {
-	CString strRoomId, strUserName;
-	if (!joined_room_) {
-		m_editRoomId.GetWindowText(strRoomId);
-		m_editUserId.GetWindowText(strUserName);
+	CString strMessage, strRoomId, strUserName;
+	m_editRoomId.GetWindowText(strRoomId);
+	m_editUserId.GetWindowText(strUserName);
+	m_editMessage.GetWindowText(strMessage);
 
-		if (strRoomId.IsEmpty() || strUserName.IsEmpty()) {
-			AfxMessageBox(_T("Invalid Room Name or User Id"));
-			return;
-		}
-
-		room_id_   = CStringToStdString(strRoomId);
-		user_name_ = CStringToStdString(strUserName);
-
-		JoinRoom();
-
-		GetDlgItem(IDC_BTN_JOIN)->EnableWindow(FALSE);
-		GetDlgItem(IDC_BTN_LEAVE)->EnableWindow(TRUE);
-		local_published_ = false;
-		joined_room_ = true;
+	if (strMessage.IsEmpty()) {
+		AfxMessageBox(_T("Invalid Message"));
+		return;
 	}
+
+	room_id_   = CStringToStdString(strRoomId);
+	user_name_ = CStringToStdString(strUserName);
+
+	OnChatMessage();
+
+	GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
 }
 
 void CRtcWinDemoDlg::OnBnClickedBtnLeave()
@@ -319,10 +316,29 @@ void CRtcWinDemoDlg::OnBnClickedBtnLeave()
 		joined_room_ = false;
 	}
 }
-
+// TODO
 void CRtcWinDemoDlg::OnBnClickedBtnSend()
 {
+	CString strRoomId, strUserName;
+	if (!joined_room_) {
+		m_editRoomId.GetWindowText(strRoomId);
+		m_editUserId.GetWindowText(strUserName);
 
+		if (strRoomId.IsEmpty() || strUserName.IsEmpty()) {
+			AfxMessageBox(_T("Invalid Room Name or User Id"));
+			return;
+		}
+
+		room_id_   = CStringToStdString(strRoomId);
+		user_name_ = CStringToStdString(strUserName);
+
+		OnChatMessage();
+
+		GetDlgItem(IDC_BTN_JOIN)->EnableWindow(FALSE);
+		GetDlgItem(IDC_BTN_LEAVE)->EnableWindow(TRUE);
+		local_published_ = false;
+		joined_room_ = true;
+	}
 }
 
 int CRtcWinDemoDlg::ConvertMethodToCommand(std::string method) {
