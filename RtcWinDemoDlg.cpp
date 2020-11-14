@@ -282,25 +282,31 @@ HWND CRtcWinDemoDlg::AllocateWindow(bool is_local, std::string track_id) {
 	return pWnd ? pWnd->GetSafeHwnd() : NULL;
 }
 
-void CRtcWinDemoDlg::OnBnClickedBtnSend()
+void CRtcWinDemoDlg::OnBnClickedBtnJoin()
 {
-	CString strMessage, strRoomId, strUserName;
-	m_editRoomId.GetWindowText(strRoomId);
-	m_editUserId.GetWindowText(strUserName);
-	m_editMessage.GetWindowText(strMessage);
+	CString strRoomId, strUserName;
+	if (!joined_room_) {
+		m_editRoomId.GetWindowText(strRoomId);
+		m_editUserId.GetWindowText(strUserName);
 
-	if (strMessage.IsEmpty()) {
-		AfxMessageBox(_T("Invalid Message"));
-		return;
+		if (strRoomId.IsEmpty() || strUserName.IsEmpty()) {
+			AfxMessageBox(_T("Invalid Room Name or User Id"));
+			return;
+		}
+
+		room_id_ = CStringToStdString(strRoomId);
+		user_name_ = CStringToStdString(strUserName);
+
+		JoinRoom();
+
+		GetDlgItem(IDC_BTN_JOIN)->EnableWindow(FALSE);
+		GetDlgItem(IDC_BTN_LEAVE)->EnableWindow(TRUE);
+		local_published_ = false;
+		joined_room_ = true;
 	}
-
-	room_id_   = CStringToStdString(strRoomId);
-	user_name_ = CStringToStdString(strUserName);
-
-	OnChatMessage();
-
-	GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
 }
+
+
 
 void CRtcWinDemoDlg::OnBnClickedBtnLeave()
 {
@@ -319,26 +325,50 @@ void CRtcWinDemoDlg::OnBnClickedBtnLeave()
 // TODO
 void CRtcWinDemoDlg::OnBnClickedBtnSend()
 {
-	CString strRoomId, strUserName;
-	if (!joined_room_) {
-		m_editRoomId.GetWindowText(strRoomId);
-		m_editUserId.GetWindowText(strUserName);
+	CString strMessage, strRoomId, strUserName;
+	m_editRoomId.GetWindowText(strRoomId);
+	m_editUserId.GetWindowText(strUserName);
+	m_editMessage.GetWindowText(strMessage);
 
-		if (strRoomId.IsEmpty() || strUserName.IsEmpty()) {
-			AfxMessageBox(_T("Invalid Room Name or User Id"));
-			return;
-		}
-
-		room_id_   = CStringToStdString(strRoomId);
-		user_name_ = CStringToStdString(strUserName);
-
-		OnChatMessage();
-
-		GetDlgItem(IDC_BTN_JOIN)->EnableWindow(FALSE);
-		GetDlgItem(IDC_BTN_LEAVE)->EnableWindow(TRUE);
-		local_published_ = false;
-		joined_room_ = true;
+	if (strMessage.IsEmpty()) {
+		AfxMessageBox(_T("Invalid Message"));
+		return;
 	}
+
+	room_id_ = CStringToStdString(strRoomId);
+	user_name_ = CStringToStdString(strUserName);
+
+	cJSON* root_json = cJSON_CreateObject();
+
+	cJSON_AddItemToObject(root_json, "request", cJSON_CreateBool(true));
+	cJSON_AddItemToObject(root_json, "id", cJSON_CreateNumber(AllocateSession(kWebSocketRequestJoinRoom, user_id_)));
+	cJSON_AddItemToObject(root_json, "method", cJSON_CreateString("broadcast"));
+
+	cJSON* data_json = cJSON_CreateObject();
+	cJSON_AddItemToObject(root_json, "data", data_json);
+	cJSON_AddItemToObject(data_json, "rid", cJSON_CreateString(room_id_.c_str()));
+	cJSON_AddItemToObject(data_json, "uid", cJSON_CreateString(user_id_.c_str()));
+
+	cJSON* info_json = cJSON_CreateObject();
+	cJSON_AddItemToObject(data_json, "info", info_json);
+	cJSON_AddItemToObject(info_json, "msg", cJSON_CreateString(CStringToStdString(strMessage).c_str()));
+	cJSON_AddItemToObject(info_json, "senderName", cJSON_CreateString(user_name_.c_str()));
+
+	OnChatMessage(root_json);
+
+	char* request = cJSON_Print(root_json);
+	cJSON_Delete(root_json);
+
+	LogPrintf(request);
+	if (websocket_ && request) {
+		websocket_->sendMessage(std::make_shared<std::string>(request));
+	}
+
+	if (request) {
+		cJSON_free(request);
+	}
+
+	GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
 }
 
 int CRtcWinDemoDlg::ConvertMethodToCommand(std::string method) {
