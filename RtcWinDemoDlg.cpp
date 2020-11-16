@@ -354,7 +354,8 @@ void CRtcWinDemoDlg::OnBnClickedBtnSend()
 	cJSON_AddItemToObject(info_json, "msg", cJSON_CreateString(CStringToStdString(strMessage).c_str()));
 	cJSON_AddItemToObject(info_json, "senderName", cJSON_CreateString(user_name_.c_str()));
 
-	OnChatMessage(root_json);
+	//这一步是把发送的信息显示到聊天内容，会重复显示两次本机发出去的信息
+	//OnChatMessage(root_json);
 
 	char* request = cJSON_Print(root_json);
 	cJSON_Delete(root_json);
@@ -366,9 +367,12 @@ void CRtcWinDemoDlg::OnBnClickedBtnSend()
 
 	if (request) {
 		cJSON_free(request);
+		//清空输入框
+		m_editMessage.SetWindowText(NULL);
 	}
 
-	GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
+	//不需要改变按键状态
+	//GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
 }
 
 int CRtcWinDemoDlg::ConvertMethodToCommand(std::string method) {
