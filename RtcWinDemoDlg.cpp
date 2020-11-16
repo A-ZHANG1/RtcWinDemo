@@ -129,7 +129,7 @@ BOOL CRtcWinDemoDlg::OnInitDialog()
 	session_id_ = rand()%0xFFFF;
 	m_editRoomId.SetWindowText(_T("bytertc"));
 	m_editUserId.SetWindowText(_T("pc"));
-	m_editMessage.SetWindowText(_T("null"));
+	m_editMessage.SetWindowText(_T(""));
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -238,9 +238,31 @@ void CRtcWinDemoDlg::RemoveTrack(webrtc::VideoTrackInterface* track) {
 	if (track && track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
 		std::string track_id = track->id();
 		auto it = map_of_video_renders_.find(track_id);
-		if (it != map_of_video_renders_.end()) {
+		if (it != map_of_video_renders_.end()) 
+			SetWinUsed(map_of_video_renders_[track_id]->GetWindow()); {
 			it->second->SetTrack(nullptr);
 			map_of_video_renders_.erase(it);
+		}
+	}
+}
+
+void CRtcWinDemoDlg::SetWinUsed(HWND window) {
+	CWnd* pWnd = NULL;
+	pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+
+	if (window == pWnd->GetSafeHwnd()) {
+		win1Used = false;
+	}
+	else {
+		pWnd = GetDlgItem(IDC_REMOTE_WIN_2);
+		if (window == pWnd->GetSafeHwnd()) {
+			win2Used = false;
+		}
+		else {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_3);
+			if (window == pWnd->GetSafeHwnd()) {
+				win3Used = false;
+			}
 		}
 	}
 }
@@ -268,7 +290,19 @@ HWND CRtcWinDemoDlg::AllocateWindow(bool is_local, std::string track_id) {
 	if (is_local) {
 		pWnd = GetDlgItem(IDC_LOCAL_WIN);
 	} else {
-		pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+		if (!win1Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+			win1Used = true;
+		}
+		else if (!win2Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_2);
+			win2Used = true;
+		}
+		else if (!win3Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_3);
+			win3Used = true;
+		}
+		
 		if (pWnd) {
 			auto it = map_of_video_renders_.begin();
 			while (it != map_of_video_renders_.end()) {
