@@ -18,9 +18,9 @@
 * `void CRtcWinDemoDlg::AddTrack(webrtc::VideoTrackInterface* track, bool is_local)`是实现加流的关键函数。它首先对待加入的`track`进行检查，如果其类型为`kVideoKind`且该`track`未曾加入，则加入该流，并调用`HWND AllocateWindow(bool is_local, std::string track_id)`为其分配对应的窗口。
 * `HWND AllocateWindow(bool is_local, std::string track_id)`是为流分配窗口的函数。它首先预分配一个窗口，然后检测该窗口是否已被其他流占用，如果未被占用，则窗口分配成功，否则分配失败，返回`NULL`．
 
-对**本地流**，`rtc_manageer.cpp`中的`CreateLocalMediaStream()` 函数触发`receiver_->AddTrack(video_track_, true);`传出的`true`参数代表`is_local = true`，即该流为本地流。
+对**本地流**，`rtc_manager.cpp`中的`CreateLocalMediaStream()` 函数触发`receiver_->AddTrack(video_track_, true);`传入的`true`参数代表`is_local = true`，即该流为本地流。
 
-对**远程流**，`rtc_manageer.cpp`中的`PeerConnectionObserver()`函数触发`receiver_->AddTrack(video_track, false)`;传出的`false`参数代表`is_local = false`，即该流为远程流。
+对**远程流**，`rtc_manager.cpp`中的`PeerConnectionObserver()`函数触发`receiver_->AddTrack(video_track, false)`;传入的`false`参数代表`is_local = false`，即该流为远程流。
 
 #### 多人通话实现思路
 
