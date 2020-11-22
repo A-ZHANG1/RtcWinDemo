@@ -162,4 +162,4 @@ void CRtcWinDemoDlg::OnBnClickedBtnSend()
 }
 ```
 ### 实现效果
-![](demo.jpg)
+![](./demo.jpg)
