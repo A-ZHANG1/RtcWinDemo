@@ -1,4 +1,4 @@
-﻿
+
 // RtcWinDemoDlg.cpp: 实现文件
 //
 
@@ -129,6 +129,7 @@ BOOL CRtcWinDemoDlg::OnInitDialog()
 	session_id_ = rand()%0xFFFF;
 	m_editRoomId.SetWindowText(_T("bytertc"));
 	m_editUserId.SetWindowText(_T("pc"));
+	m_editMessage.SetWindowText(_T(""));
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -237,9 +238,31 @@ void CRtcWinDemoDlg::RemoveTrack(webrtc::VideoTrackInterface* track) {
 	if (track && track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
 		std::string track_id = track->id();
 		auto it = map_of_video_renders_.find(track_id);
-		if (it != map_of_video_renders_.end()) {
+		if (it != map_of_video_renders_.end()) 
+			SetWinUsed(map_of_video_renders_[track_id]->GetWindow()); {
 			it->second->SetTrack(nullptr);
 			map_of_video_renders_.erase(it);
+		}
+	}
+}
+
+void CRtcWinDemoDlg::SetWinUsed(HWND window) {
+	CWnd* pWnd = NULL;
+	pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+
+	if (window == pWnd->GetSafeHwnd()) {
+		win1Used = false;
+	}
+	else {
+		pWnd = GetDlgItem(IDC_REMOTE_WIN_2);
+		if (window == pWnd->GetSafeHwnd()) {
+			win2Used = false;
+		}
+		else {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_3);
+			if (window == pWnd->GetSafeHwnd()) {
+				win3Used = false;
+			}
 		}
 	}
 }
@@ -267,7 +290,19 @@ HWND CRtcWinDemoDlg::AllocateWindow(bool is_local, std::string track_id) {
 	if (is_local) {
 		pWnd = GetDlgItem(IDC_LOCAL_WIN);
 	} else {
-		pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+		if (!win1Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_1);
+			win1Used = true;
+		}
+		else if (!win2Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_2);
+			win2Used = true;
+		}
+		else if (!win3Used) {
+			pWnd = GetDlgItem(IDC_REMOTE_WIN_3);
+			win3Used = true;
+		}
+		
 		if (pWnd) {
 			auto it = map_of_video_renders_.begin();
 			while (it != map_of_video_renders_.end()) {
@@ -293,7 +328,7 @@ void CRtcWinDemoDlg::OnBnClickedBtnJoin()
 			return;
 		}
 
-		room_id_   = CStringToStdString(strRoomId);
+		room_id_ = CStringToStdString(strRoomId);
 		user_name_ = CStringToStdString(strUserName);
 
 		JoinRoom();
@@ -304,6 +339,8 @@ void CRtcWinDemoDlg::OnBnClickedBtnJoin()
 		joined_room_ = true;
 	}
 }
+
+
 
 void CRtcWinDemoDlg::OnBnClickedBtnLeave()
 {
@@ -319,10 +356,57 @@ void CRtcWinDemoDlg::OnBnClickedBtnLeave()
 		joined_room_ = false;
 	}
 }
-
+// TODO
 void CRtcWinDemoDlg::OnBnClickedBtnSend()
 {
+	CString strMessage, strRoomId, strUserName;
+	m_editRoomId.GetWindowText(strRoomId);
+	m_editUserId.GetWindowText(strUserName);
+	m_editMessage.GetWindowText(strMessage);
 
+	if (strMessage.IsEmpty()) {
+		AfxMessageBox(_T("Invalid Message"));
+		return;
+	}
+
+	room_id_ = CStringToStdString(strRoomId);
+	user_name_ = CStringToStdString(strUserName);
+
+	cJSON* root_json = cJSON_CreateObject();
+
+	cJSON_AddItemToObject(root_json, "request", cJSON_CreateBool(true));
+	cJSON_AddItemToObject(root_json, "id", cJSON_CreateNumber(AllocateSession(kWebSocketRequestJoinRoom, user_id_)));
+	cJSON_AddItemToObject(root_json, "method", cJSON_CreateString("broadcast"));
+
+	cJSON* data_json = cJSON_CreateObject();
+	cJSON_AddItemToObject(root_json, "data", data_json);
+	cJSON_AddItemToObject(data_json, "rid", cJSON_CreateString(room_id_.c_str()));
+	cJSON_AddItemToObject(data_json, "uid", cJSON_CreateString(user_id_.c_str()));
+
+	cJSON* info_json = cJSON_CreateObject();
+	cJSON_AddItemToObject(data_json, "info", info_json);
+	cJSON_AddItemToObject(info_json, "msg", cJSON_CreateString(CStringToStdString(strMessage).c_str()));
+	cJSON_AddItemToObject(info_json, "senderName", cJSON_CreateString(user_name_.c_str()));
+
+	//这一步是把发送的信息显示到聊天内容，会重复显示两次本机发出去的信息
+	//OnChatMessage(root_json);
+
+	char* request = cJSON_Print(root_json);
+	cJSON_Delete(root_json);
+
+	LogPrintf(request);
+	if (websocket_ && request) {
+		websocket_->sendMessage(std::make_shared<std::string>(request));
+	}
+
+	if (request) {
+		cJSON_free(request);
+		//清空输入框
+		m_editMessage.SetWindowText(NULL);
+	}
+
+	//不需要改变按键状态
+	//GetDlgItem(IDC_BTN_SEND)->EnableWindow(TRUE);
 }
 
 int CRtcWinDemoDlg::ConvertMethodToCommand(std::string method) {

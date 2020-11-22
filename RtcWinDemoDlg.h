@@ -66,6 +66,7 @@ public:
 
 	virtual void AddTrack(webrtc::VideoTrackInterface* track, bool is_local);
 	virtual void RemoveTrack(webrtc::VideoTrackInterface* track);
+	virtual void SetWinUsed(HWND window);
 
 	virtual void OnIceCandidate(std::string uid, const std::string mid, const std::string sdp);
 
@@ -125,6 +126,10 @@ protected:
 	std::atomic_bool local_published_;
 	std::atomic_bool auto_publish_;
 	long session_id_;
+
+	std::atomic_bool win1Used;
+	std::atomic_bool win2Used;
+	std::atomic_bool win3Used;
 
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
